@@ -579,13 +579,8 @@ class Bot {
                     return res.end(this.incomingPath + ' only accepts POST');
                 }
 
-                let body = '';
+                function handlePayload(body) {
 
-                req.on('data', chunk => {
-                    body += chunk;
-                });
-
-                req.on('end', () => {
                     if (!this.skipSignatureCheck) {
                         if (!isSignatureValid(body, this.apiKey, req.headers['x-kik-signature'])) {
                             // the request was not sent with a valid signature, so we reject it
@@ -624,7 +619,34 @@ class Bot {
                     res.statusCode = 200;
 
                     return res.end('OK');
-                });
+                }
+
+                if (req.body) {
+
+                    // body is already parsed for us, by for example express.
+
+                    let body = req.body;
+                    if (typeof(body) === 'object') {
+                        body = JSON.stringify(body);
+                    }
+
+                    handlePayload.bind(this)(body);
+
+                } else if (req.on) {
+
+                    // we need to parse body.
+                    let body = '';
+
+                    req.on('data', chunk => {
+                        body += chunk;
+                    });
+
+                    req.on('end', () => {
+                        handlePayload.bind(this)(body);
+                    });
+
+                }
+
             } else {
                 if (next) {
                     next();
